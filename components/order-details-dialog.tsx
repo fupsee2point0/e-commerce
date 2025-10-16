@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface OrderDetailsDialogProps {
   order: Order
@@ -15,11 +16,16 @@ interface OrderDetailsDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+interface OrderItemWithImage extends OrderItem {
+  product_image?: string
+}
+
 export function OrderDetailsDialog({ order, open, onOpenChange }: OrderDetailsDialogProps) {
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([])
+  const [orderItems, setOrderItems] = useState<OrderItemWithImage[]>([])
   const [status, setStatus] = useState(order.status)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (open) {
@@ -31,8 +37,32 @@ export function OrderDetailsDialog({ order, open, onOpenChange }: OrderDetailsDi
   const loadOrderItems = async () => {
     setIsLoading(true)
     const supabase = createClient()
-    const { data } = await supabase.from("order_items").select("*").eq("order_id", order.id)
-    setOrderItems((data as OrderItem[]) || [])
+
+    // Fetch order items
+    const { data: items } = await supabase.from("order_items").select("*").eq("order_id", order.id)
+
+    if (items && items.length > 0) {
+      // Fetch product images for each item
+      const itemsWithImages = await Promise.all(
+        items.map(async (item) => {
+          const { data: images } = await supabase
+            .from("product_images")
+            .select("image_url")
+            .eq("product_id", item.product_id)
+            .order("display_order", { ascending: true })
+            .limit(1)
+            .single()
+
+          return {
+            ...item,
+            product_image: images?.image_url || null,
+          }
+        }),
+      )
+
+      setOrderItems(itemsWithImages as OrderItemWithImage[])
+    }
+
     setIsLoading(false)
   }
 
@@ -46,9 +76,16 @@ export function OrderDetailsDialog({ order, open, onOpenChange }: OrderDetailsDi
 
     if (error) {
       console.error("[v0] Error updating order status:", error)
-      alert("Failed to update order status")
+      toast({
+        title: "Error",
+        description: "Failed to update order status",
+        variant: "destructive",
+      })
     } else {
-      alert("Order status updated successfully")
+      toast({
+        title: "Success",
+        description: "Order status updated successfully",
+      })
       onOpenChange(false)
       window.location.reload()
     }
@@ -72,10 +109,12 @@ export function OrderDetailsDialog({ order, open, onOpenChange }: OrderDetailsDi
                 <span className="text-muted-foreground">Name:</span>
                 <span className="col-span-2 font-medium">{order.customer_name}</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-muted-foreground">Email:</span>
-                <span className="col-span-2">{order.customer_email}</span>
-              </div>
+              {order.customer_email && (
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="col-span-2">{order.customer_email}</span>
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-muted-foreground">Phone:</span>
                 <span className="col-span-2">{order.customer_phone}</span>
@@ -89,7 +128,8 @@ export function OrderDetailsDialog({ order, open, onOpenChange }: OrderDetailsDi
             <div className="text-sm">
               <p>{order.shipping_address}</p>
               <p>
-                {order.shipping_city}, {order.shipping_postal_code}
+                {order.shipping_city}
+                {order.shipping_postal_code && `, ${order.shipping_postal_code}`}
               </p>
               <p>{order.shipping_country}</p>
             </div>
@@ -105,18 +145,30 @@ export function OrderDetailsDialog({ order, open, onOpenChange }: OrderDetailsDi
             ) : (
               <div className="space-y-3">
                 {orderItems.map((item) => (
-                  <div key={item.id} className="flex justify-between rounded-lg border p-3">
-                    <div>
-                      <p className="font-medium">{item.product_name}</p>
-                      <div className="mt-1 flex gap-2 text-sm text-muted-foreground">
-                        {item.size && <span>Size: {item.size}</span>}
-                        {item.color && <span>Color: {item.color}</span>}
-                        <span>Qty: {item.quantity}</span>
+                  <div key={item.id} className="flex gap-3 rounded-lg border p-3">
+                    {item.product_image && (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={item.product_image || "/placeholder.svg"}
+                          alt={item.product_name}
+                          className="h-20 w-20 rounded-md object-cover border"
+                        />
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">৳{Number(item.subtotal).toFixed(2)}</p>
-                      <p className="text-sm text-muted-foreground">৳{Number(item.unit_price).toFixed(2)} each</p>
+                    )}
+
+                    <div className="flex flex-1 justify-between">
+                      <div>
+                        <p className="font-medium">{item.product_name}</p>
+                        <div className="mt-1 flex gap-2 text-sm text-muted-foreground">
+                          {item.size && <span>Size: {item.size}</span>}
+                          {item.color && <span>Color: {item.color}</span>}
+                          <span>Qty: {item.quantity}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">৳{Number(item.subtotal).toFixed(2)}</p>
+                        <p className="text-sm text-muted-foreground">৳{Number(item.unit_price).toFixed(2)} each</p>
+                      </div>
                     </div>
                   </div>
                 ))}

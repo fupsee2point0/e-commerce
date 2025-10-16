@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import type { Category, Subcategory } from "@/lib/types"
@@ -16,6 +15,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ImageUpload } from "@/components/image-upload"
 
 interface ProductFormProps {
   categories: Category[]
@@ -48,6 +48,7 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
   })
 
   const [variants, setVariants] = useState<Variant[]>([{ size: "", color: "", stock: 0, sku: "" }])
+  const [imageUrls, setImageUrls] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -72,6 +73,11 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
             sku: v.sku || "",
           })),
         )
+      }
+
+      if (initialProduct.product_images && initialProduct.product_images.length > 0) {
+        const sortedImages = [...initialProduct.product_images].sort((a, b) => a.display_order - b.display_order)
+        setImageUrls(sortedImages.map((img: any) => img.image_url))
       }
     }
   }, [initialProduct])
@@ -99,6 +105,10 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
       newErrors.categoryId = "Category is required"
     }
 
+    if (imageUrls.length === 0) {
+      newErrors.images = "At least one product image is required"
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -111,7 +121,6 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
       setErrors((prev) => ({ ...prev, [name]: "" }))
     }
 
-    // Auto-generate slug from name (only in create mode)
     if (name === "name" && !isEditMode) {
       const slug = value
         .toLowerCase()
@@ -158,7 +167,6 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
       const categoryId = formData.categoryId?.trim() || null
 
       if (isEditMode) {
-        // Update existing product
         const { error: productError } = await supabase
           .from("products")
           .update({
@@ -174,7 +182,17 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
 
         if (productError) throw productError
 
-        // Delete existing variants
+        await supabase.from("product_images").delete().eq("product_id", initialProduct.id)
+
+        const imageData = imageUrls.map((url, index) => ({
+          product_id: initialProduct.id,
+          image_url: url,
+          display_order: index,
+        }))
+
+        const { error: imagesError } = await supabase.from("product_images").insert(imageData)
+        if (imagesError) throw imagesError
+
         await supabase.from("product_variants").delete().eq("product_id", initialProduct.id)
 
         const variantData = variants
@@ -198,7 +216,6 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
           description: "Product updated successfully!",
         })
       } else {
-        // Create new product
         const { data: product, error: productError } = await supabase
           .from("products")
           .insert({
@@ -214,6 +231,15 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
           .single()
 
         if (productError) throw productError
+
+        const imageData = imageUrls.map((url, index) => ({
+          product_id: product.id,
+          image_url: url,
+          display_order: index,
+        }))
+
+        const { error: imagesError } = await supabase.from("product_images").insert(imageData)
+        if (imagesError) throw imagesError
 
         const variantData = variants
           .filter((v) => v.size || v.color)
@@ -276,6 +302,16 @@ export function ProductForm({ categories, subcategories, initialProduct }: Produ
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Product Images</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ImageUpload images={imageUrls} onChange={setImageUrls} maxImages={10} />
+              {errors.images && <p className="mt-2 text-sm text-destructive">{errors.images}</p>}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Product Information</CardTitle>

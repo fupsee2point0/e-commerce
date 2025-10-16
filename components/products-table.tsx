@@ -16,7 +16,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -38,19 +37,16 @@ export function ProductsTable({ products }: ProductsTableProps) {
     setDeletingId(productId)
 
     try {
-      // Check if product has orders
       const response = await fetch(`/api/products/${productId}/check-orders`)
-      const { hasOrders } = await response.json()
+      const { hasPendingOrders } = await response.json()
 
-      if (hasOrders) {
-        // Product has orders, offer to mark as inactive instead
+      if (hasPendingOrders) {
         setProductToDelete({ id: productId, name: productName })
         setShowInactiveDialog(true)
         setDeletingId(null)
         return
       }
 
-      // Product has no orders, safe to delete
       if (!confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
         setDeletingId(null)
         return
@@ -254,21 +250,21 @@ export function ProductsTable({ products }: ProductsTableProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cannot Delete Product</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
+            <div className="space-y-3 text-sm text-muted-foreground">
               <p>
-                The product <strong>"{productToDelete?.name}"</strong> cannot be deleted because it has existing orders
-                in the system.
+                The product <strong>"{productToDelete?.name}"</strong> cannot be deleted because it has pending or
+                processing orders.
               </p>
               <p>
                 To preserve order history and data integrity, you can mark this product as <strong>inactive</strong>{" "}
                 instead. This will:
               </p>
-              <ul className="list-inside list-disc space-y-1 text-sm">
+              <ul className="list-inside list-disc space-y-1">
                 <li>Hide the product from customers</li>
                 <li>Preserve all order history</li>
                 <li>Allow you to reactivate it later if needed</li>
               </ul>
-            </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setProductToDelete(null)}>Cancel</AlertDialogCancel>

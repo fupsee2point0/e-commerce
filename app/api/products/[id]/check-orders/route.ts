@@ -5,11 +5,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const supabase = createServiceRoleClient()
 
-    // Check if product has any orders
     const { data: orderItems, error } = await supabase
       .from("order_items")
-      .select("id")
+      .select("id, orders!inner(status)")
       .eq("product_id", params.id)
+      .in("orders.status", ["pending", "processing"])
       .limit(1)
 
     if (error) {
@@ -17,7 +17,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Failed to check orders" }, { status: 500 })
     }
 
-    return NextResponse.json({ hasOrders: orderItems && orderItems.length > 0 })
+    return NextResponse.json({
+      hasPendingOrders: orderItems && orderItems.length > 0,
+    })
   } catch (error) {
     console.error("[v0] Error in check-orders route:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

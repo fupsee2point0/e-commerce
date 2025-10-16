@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import type { CartItem } from "@/lib/types"
 
@@ -19,20 +19,11 @@ export async function POST(request: Request) {
     } = body
 
     // Validate required fields
-    if (
-      !customerName ||
-      !customerEmail ||
-      !customerPhone ||
-      !shippingAddress ||
-      !shippingCity ||
-      !shippingPostalCode ||
-      !items ||
-      items.length === 0
-    ) {
+    if (!customerName || !customerPhone || !shippingAddress || !shippingCity || !items || items.length === 0) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = createServiceRoleClient()
 
     // Generate order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`
@@ -43,11 +34,11 @@ export async function POST(request: Request) {
       .insert({
         order_number: orderNumber,
         customer_name: customerName,
-        customer_email: customerEmail,
+        customer_email: customerEmail || null,
         customer_phone: customerPhone,
         shipping_address: shippingAddress,
         shipping_city: shippingCity,
-        shipping_postal_code: shippingPostalCode,
+        shipping_postal_code: shippingPostalCode || null,
         shipping_country: shippingCountry,
         total_amount: totalAmount,
         status: "pending",

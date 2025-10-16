@@ -283,13 +283,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </Button>
         </div>
 
-        {!isInStock && <p className="text-sm text-destructive">This product is currently out of stock.</p>}
-
-        {hasVariants && (!selectedSize || !selectedColor) && (
+        {hasVariants && (!selectedSize || !selectedColor) ? (
           <p className="text-sm text-muted-foreground">
             Please select {!selectedSize && "size"} {!selectedSize && !selectedColor && "and"}{" "}
             {!selectedColor && "color"} to continue.
           </p>
+        ) : (
+          !isInStock && <p className="text-sm text-destructive">This product is currently out of stock.</p>
         )}
       </div>
     </div>

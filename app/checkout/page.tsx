@@ -59,9 +59,7 @@ export default function CheckoutPage() {
       newErrors.customerName = "Name is required"
     }
 
-    if (!formData.customerEmail.trim()) {
-      newErrors.customerEmail = "Email is required"
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)) {
+    if (formData.customerEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)) {
       newErrors.customerEmail = "Invalid email address"
     }
 
@@ -75,10 +73,6 @@ export default function CheckoutPage() {
 
     if (!formData.shippingCity.trim()) {
       newErrors.shippingCity = "City is required"
-    }
-
-    if (!formData.shippingPostalCode.trim()) {
-      newErrors.shippingPostalCode = "Postal code is required"
     }
 
     setErrors(newErrors)
@@ -180,9 +174,7 @@ export default function CheckoutPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="customerEmail">
-                          Email <span className="text-destructive">*</span>
-                        </Label>
+                        <Label htmlFor="customerEmail">Email</Label>
                         <Input
                           id="customerEmail"
                           name="customerEmail"
@@ -249,9 +241,7 @@ export default function CheckoutPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="shippingPostalCode">
-                          Postal Code <span className="text-destructive">*</span>
-                        </Label>
+                        <Label htmlFor="shippingPostalCode">Postal Code</Label>
                         <Input
                           id="shippingPostalCode"
                           name="shippingPostalCode"
